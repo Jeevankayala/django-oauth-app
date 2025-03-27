@@ -1,0 +1,1 @@
+web: gunicorn meet_integration.wsgi:application --workers 2
