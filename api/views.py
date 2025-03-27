@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/auth'
 GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3/calendars/primary/events'
-REDIRECT_URI = 'http://localhost:8000/api/auth/google/callback/'
+# REDIRECT_URI = 'http://localhost:8000/api/auth/google/callback/'  # Localhost
+REDIRECT_URI = 'https://django-oauth-app.onrender.com/api/auth/google/callback/' # Render
 GOOGLE_SCOPES = ['https://www.googleapis.com/auth/calendar.readonly','https://www.googleapis.com/auth/meetings.space.created','https://www.googleapis.com/auth/meetings.space.readonly']
 
 class GoogleAuthView(APIView):
@@ -126,7 +127,8 @@ class GetGoogleTokenView(APIView):
 ZOOM_AUTH_URL = 'https://zoom.us/oauth/authorize'
 ZOOM_TOKEN_URL = 'https://zoom.us/oauth/token'
 ZOOM_API = 'https://api.zoom.us/v2/users/me'
-ZOOM_REDIRECT_URI = 'http://localhost:8000/api/auth/zoom/callback/'
+# ZOOM_REDIRECT_URI = 'http://localhost:8000/api/auth/zoom/callback/'  # Localhost
+ZOOM_REDIRECT_URI = 'https://django-oauth-app.onrender.com/api/auth/zoom/callback/' # Render
 # ZOOM_SCOPES = ['meeting:read:meeting', 'meeting:read:summary', 'meeting:read:meeting_transcript', 'user:read:user', 'meeting:read:meeting_audio']
 ZOOM_SCOPES = ['user:read:user']
 
@@ -187,7 +189,8 @@ TEAMS_AUTH_URL = f'https://login.microsoftonline.com/{settings.TEAMS_TENANT_ID}/
 TEAMS_TOKEN_URL = f'https://login.microsoftonline.com/{settings.TEAMS_TENANT_ID}/oauth2/v2.0/token'
 TEAMS_CALENDAR_API = 'https://graph.microsoft.com/v1.0/me/events'
 TEAMS_MEETINGS_API = 'https://graph.microsoft.com/v1.0/me/onlineMeetings'
-TEAMS_REDIRECT_URI = 'http://localhost:8000/api/auth/teams/callback/'
+# TEAMS_REDIRECT_URI = 'http://localhost:8000/api/auth/teams/callback/'  # Localhost
+TEAMS_REDIRECT_URI = 'https://django-oauth-app.onrender.com/api/auth/teams/callback/' # Render
 TEAMS_SCOPES = [
     'https://graph.microsoft.com/User.Read',
     'https://graph.microsoft.com/Calendars.Read',
