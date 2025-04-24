@@ -1,1 +1,1 @@
-web: gunicorn omnibound_backend.wsgi
+web: gunicorn omnibound_backend.wsgi:application --workers 3

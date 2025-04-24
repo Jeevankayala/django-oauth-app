@@ -45,7 +45,7 @@ INSTALLED_APPS = [
 
     #apps
     'authentication',
-    'input_data_management',
+    # 'input_data_management',
     'django_celery_beat',
 ]
 
