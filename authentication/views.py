@@ -12,6 +12,7 @@ from .utils import refresh_oauth_token
 from django.core.exceptions import ValidationError
 from svix import Webhook, WebhookVerificationError
 import json
+from rest_framework import status
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ class ClerkWebhookView(APIView):
                 last_name = data.get('last_name', None)
                 phone_number = data.get('phone_numbers', [{}])[0].get('phone_number', '')
                 role = data.get('public_metadata', {}).get('role', '')
-                status = data.get('public_metadata', {}).get('status', '')
+                user_status = data.get('public_metadata', {}).get('status', '')
 
                 if not email or not user_id:
                     logger.warning(f"Missing email or user_id in webhook payload: {data}")
@@ -94,7 +95,7 @@ class ClerkWebhookView(APIView):
                         'last_name': last_name,
                         'phone_number': phone_number,
                         'role': role,
-                        'status': status,
+                        'status': user_status,
                     }
                 )
 
