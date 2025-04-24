@@ -228,7 +228,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 
 # settings.py
-WEBHOOK_URL = "https://a9f4-49-206-53-116.ngrok-free.app/api/input-data/google-drive-webhook/"  # Replace with your actual webhook URL
+WEBHOOK_URL = "https://django-oauth-app.onrender.com/api/input-data/google-drive-webhook/"  # Replace with your actual webhook URL
 if not WEBHOOK_URL.startswith("https"):
     raise ImproperlyConfigured("WEBHOOK_URL must use HTTPS")
 
