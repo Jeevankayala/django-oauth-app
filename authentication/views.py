@@ -6,11 +6,10 @@ from requests_oauthlib import OAuth2Session
 from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth.models import User
-from .models import GoogleToken, ZoomToken, TeamsToken
+from .models import CustomUser,GoogleToken, ZoomToken, TeamsToken
 import logging
 from .utils import refresh_oauth_token
 from django.core.exceptions import ValidationError
-from rest_framework import status
 from svix import Webhook, WebhookVerificationError
 import json
 
@@ -34,6 +33,10 @@ TEAMS_SCOPES = [
     'https://graph.microsoft.com/Calendars.Read',
     'offline_access'
 ]
+
+
+
+logger = logging.getLogger(__name__)
 
 class ClerkWebhookView(APIView):
     permission_classes = []
@@ -71,33 +74,41 @@ class ClerkWebhookView(APIView):
             if event_type == 'user.created' or event_type == 'user.updated':
                 user_id = data.get('id')
                 email = data.get('email_addresses', [{}])[0].get('email_address', '')
-                first_name = data.get('first_name', '')
-                last_name = data.get('last_name', '')
+                first_name = data.get('first_name', None)
+                last_name = data.get('last_name', None)
+                phone_number = data.get('phone_numbers', [{}])[0].get('phone_number', '')
+                role = data.get('public_metadata', {}).get('role', '')
+                status = data.get('public_metadata', {}).get('status', '')
 
                 if not email or not user_id:
                     logger.warning(f"Missing email or user_id in webhook payload: {data}")
                     return Response({"error": "Invalid user data"}, status=status.HTTP_400_BAD_REQUEST)
 
-                # Update or create Django user
-                user, created = User.objects.update_or_create(
-                    username=user_id,  # Use Clerk user ID as username
+                # Update or create CustomUser
+                user, created = CustomUser.objects.update_or_create(
+                    clerk_id=user_id,
                     defaults={
+                        'username': user_id,  # Optional, can be null
                         'email': email,
                         'first_name': first_name,
                         'last_name': last_name,
+                        'phone_number': phone_number,
+                        'role': role,
+                        'status': status,
                     }
                 )
+
                 logger.info(f"User {'created' if created else 'updated'}: {user_id}")
                 return Response({"message": "User processed successfully"}, status=status.HTTP_200_OK)
 
             elif event_type == 'user.deleted':
                 user_id = data.get('id')
                 try:
-                    user = User.objects.get(username=user_id)
+                    user = CustomUser.objects.get(clerk_id=user_id)
                     user.delete()
                     logger.info(f"User deleted: {user_id}")
                     return Response({"message": "User deleted successfully"}, status=status.HTTP_200_OK)
-                except User.DoesNotExist:
+                except CustomUser.DoesNotExist:
                     logger.warning(f"User not found for deletion: {user_id}")
                     return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -144,7 +155,7 @@ class GoogleAuthView(APIView):
             )
             logger.info(f"Generated auth URL: {authorization_url}")
             request.session['oauth_state'] = state
-            request.session['oauth_user_id'] = request.user.username  # Use Clerk user ID
+            request.session['oauth_user_id'] = request.user.clerk_id  # Use Clerk user ID
             return redirect(authorization_url)
         except Exception as e:
             logger.error(f"OAuth initiation failed: {str(e)}")
@@ -172,9 +183,9 @@ class GoogleCallbackView(APIView):
                 return Response({'error': 'State mismatch. Possible CSRF attack.'}, status=400)
 
             try:
-                user = User.objects.get(username=user_id)  # Clerk user ID
-            except User.DoesNotExist:
-                logger.error(f"User with ID {user_id} not found")
+                user = CustomUser.objects.get(clerk_id=user_id)  # Use clerk_id
+            except CustomUser.DoesNotExist:
+                logger.error(f"User with clerk_id {user_id} not found")
                 return Response({'error': 'User not found'}, status=404)
 
             oauth = OAuth2Session(
@@ -249,7 +260,7 @@ class ZoomAuthView(APIView):
             )
             logger.info(f"Generated Zoom auth URL: {authorization_url}")
             request.session['oauth_state'] = state
-            request.session['oauth_user_id'] = request.user.username
+            request.session['oauth_user_id'] = request.user.clerk_id  # Use Clerk user ID
             return redirect(authorization_url)
         except Exception as e:
             logger.error(f"Zoom OAuth initiation failed: {str(e)}")
@@ -277,9 +288,9 @@ class ZoomCallbackView(APIView):
                 return Response({'error': 'State mismatch. Possible CSRF attack.'}, status=400)
 
             try:
-                user = User.objects.get(username=user_id)
-            except User.DoesNotExist:
-                logger.error(f"User with ID {user_id} not found")
+                user = CustomUser.objects.get(clerk_id=user_id)  # Use clerk_id
+            except CustomUser.DoesNotExist:
+                logger.error(f"User with clerk_id {user_id} not found")
                 return Response({'error': 'User not found'}, status=404)
 
             oauth = OAuth2Session(
@@ -352,7 +363,7 @@ class TeamsAuthView(APIView):
 
             logger.info(f"Generated Microsoft Teams auth URL: {authorization_url}")
             request.session['oauth_state'] = state
-            request.session['oauth_user_id'] = request.user.username
+            request.session['oauth_user_id'] = request.user.clerk_id  # Use Clerk user ID
             return redirect(authorization_url)
         except Exception as e:
             logger.error(f"Microsoft Teams OAuth initiation failed: {str(e)}")
@@ -380,9 +391,9 @@ class TeamsCallbackView(APIView):
                 return Response({'error': 'State mismatch. Possible CSRF attack.'}, status=400)
 
             try:
-                user = User.objects.get(username=user_id)
-            except User.DoesNotExist:
-                logger.error(f"User with ID {user_id} not found")
+                user = CustomUser.objects.get(clerk_id=user_id)  # Use clerk_id
+            except CustomUser.DoesNotExist:
+                logger.error(f"User with clerk_id {user_id} not found")
                 return Response({'error': 'User not found'}, status=404)
 
             oauth = OAuth2Session(
@@ -429,10 +440,10 @@ class GoogleDeleteView(APIView):
         try:
             token_obj = GoogleToken.objects.get(user=request.user)
             token_obj.delete()
-            logger.info(f"Google token deleted for user {request.user.username}")
+            logger.info(f"Google token deleted for user {request.user.clerk_id}")
             return Response({"message": "Google integration removed successfully"}, status=200)
         except GoogleToken.DoesNotExist:
-            logger.warning(f"No Google token found for user {request.user.username}")
+            logger.warning(f"No Google token found for user {request.user.clerk_id}")
             return Response({"message": "No Google integration found"}, status=404)
         except Exception as e:
             logger.error(f"Google token deletion failed: {str(e)}")
@@ -445,10 +456,10 @@ class ZoomDeleteView(APIView):
         try:
             token_obj = ZoomToken.objects.get(user=request.user)
             token_obj.delete()
-            logger.info(f"Zoom token deleted for user {request.user.username}")
+            logger.info(f"Zoom token deleted for user {request.user.clerk_id}")
             return Response({"message": "Zoom integration removed successfully"}, status=200)
         except ZoomToken.DoesNotExist:
-            logger.warning(f"No Zoom token found for user {request.user.username}")
+            logger.warning(f"No Zoom token found for user {request.user.clerk_id}")
             return Response({"message": "No Zoom integration found"}, status=404)
         except Exception as e:
             logger.error(f"Zoom token deletion failed: {str(e)}")
@@ -461,10 +472,10 @@ class TeamsDeleteView(APIView):
         try:
             token_obj = TeamsToken.objects.get(user=request.user)
             token_obj.delete()
-            logger.info(f"Teams token deleted for user {request.user.username}")
+            logger.info(f"Teams token deleted for user {request.user.clerk_id}")
             return Response({"message": "Microsoft Teams integration removed successfully"}, status=200)
         except TeamsToken.DoesNotExist:
-            logger.warning(f"No Teams token found for user {request.user.username}")
+            logger.warning(f"No Teams token found for user {request.user.clerk_id}")
             return Response({"message": "No Microsoft Teams integration found"}, status=404)
         except Exception as e:
             logger.error(f"Teams token deletion failed: {str(e)}")

@@ -1,11 +1,15 @@
 import jwt
-from django.contrib.auth.models import User
 from django.core.cache import cache
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from django.conf import settings
 import requests
 from jwt.algorithms import RSAAlgorithm
+import logging
+from django.core.cache import cache
+from authentication.models import CustomUser  # Adjust app name
+
+logger = logging.getLogger(__name__)
 
 class ClerkJWTAuthentication(BaseAuthentication):
     def authenticate(self, request):
@@ -42,9 +46,10 @@ class ClerkJWTAuthentication(BaseAuthentication):
                 raise AuthenticationFailed("Invalid token payload.")
 
             try:
-                user = User.objects.get(username=user_id)
+                user = CustomUser.objects.get(clerk_id=user_id)  # Use clerk_id
                 return user, token
-            except User.DoesNotExist:
+            except CustomUser.DoesNotExist:
+                logger.error(f"User with clerk_id {user_id} not found")
                 raise AuthenticationFailed("User not found. Please ensure user is synced via webhook.")
 
         except jwt.ExpiredSignatureError:
@@ -54,4 +59,5 @@ class ClerkJWTAuthentication(BaseAuthentication):
         except jwt.InvalidTokenError:
             raise AuthenticationFailed("Invalid token.")
         except Exception as e:
+            logger.error(f"Authentication failed: {str(e)}")
             raise AuthenticationFailed(f"Authentication failed: {str(e)}")

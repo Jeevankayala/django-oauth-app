@@ -28,8 +28,6 @@ SECRET_KEY = 'django-insecure-13-adsh5z!eip1!#$3yx09*kh!$cl*+6n-oa2!1!h4+9ipv^kc
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
-ALLOWED_HOSTS = ['*']
-
 
 # Application definition
 
@@ -193,16 +191,16 @@ LOGGING = {
 }
 
 
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'authentication.backends.ClerkJWTAuthentication',
     ],
-    # 'DEFAULT_PERMISSION_CLASSES': [
-    #     'rest_framework.permissions.IsAuthenticated',
-    # ],
     'DEFAULT_PERMISSION_CLASSES': [
-    'rest_framework.permissions.AllowAny',
-],
+        'rest_framework.permissions.IsAuthenticated',
+    ],
 }
 # REST_FRAMEWORK = {
 #     'DEFAULT_AUTHENTICATION_CLASSES': [
