@@ -104,8 +104,8 @@ DATABASES = {
         'NAME': os.getenv('DB_NAME', 'mydb'),
         'USER': os.getenv('DB_USER', 'myuser'),
         'PASSWORD': os.getenv('DB_PASSWORD', 'mypassword'),
-        # 'HOST': os.getenv('DB_HOST'),
-        'HOST': 'db', # Docker service name
+        'HOST': os.getenv('DB_HOST'),
+        # 'HOST': 'db', # Docker service name
         'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
