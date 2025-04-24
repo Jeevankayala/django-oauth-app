@@ -166,11 +166,14 @@ TEAMS_CLIENT_ID = os.getenv('TEAMS_CLIENT_ID')
 TEAMS_CLIENT_SECRET = os.getenv('TEAMS_CLIENT_SECRET')
 TEAMS_TENANT_ID = os.getenv('TEAMS_TENANT_ID')
 ASSEMBLYAI_API_KEY = os.getenv('ASSEMBLYAI_API_KEY')
-GOOGLE_REDIRECT_URI = 'http://localhost:8000/api/auth/google/callback/'
+# GOOGLE_REDIRECT_URI = 'http://localhost:8000/api/auth/google/callback/'
+GOOGLE_REDIRECT_URI= "https://django-oauth-app.onrender.com/api/auth/google/callback/"
 # https://omnibound.ai/api/auth/google/callback/
-ZOOM_REDIRECT_URI = 'http://localhost:8000/api/auth/zoom/callback/'
+# ZOOM_REDIRECT_URI = 'http://localhost:8000/api/auth/zoom/callback/'
+ZOOM_REDIRECT_URI= "https://django-oauth-app.onrender.com/api/auth/zoom/callback/"
 # https://omnibound.ai/api/auth/google/callback/
-TEAMS_REDIRECT_URI = 'http://localhost:8000/api/auth/teams/callback/'
+# TEAMS_REDIRECT_URI = 'http://localhost:8000/api/auth/teams/callback/'
+TEAMS_REDIRECT_URI= "https://django-oauth-app.onrender.com/api/auth/teams/callback/"
 # https://omnibound.ai/api/auth/teams/callback/
 
 
