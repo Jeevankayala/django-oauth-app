@@ -154,8 +154,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-
+AUTH_USER_MODEL = 'authentication.CustomUser'  # Replace 'yourapp' with your app name
 
 # OAuth2 settings
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
