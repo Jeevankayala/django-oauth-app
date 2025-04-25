@@ -28,16 +28,21 @@ SECRET_KEY = 'django-insecure-13-adsh5z!eip1!#$3yx09*kh!$cl*+6n-oa2!1!h4+9ipv^kc
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://3.131.31.72:30080"
+ 
+# CSRF settings
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",  # Allow frontend to send CSRF tokens from localhost
+    "https://django-oauth-app.onrender.com",  # Add backend domain to CSRF trusted origins
 ]
-
-CORS_ALLOW_ALL_ORIGINS = True
-
+ 
+# CORS settings
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Allow requests only from localhost:3000
+]
+ 
+CORS_ALLOW_ALL_ORIGINS = False  # Make sure this is set to False, or remove it
+ 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -47,17 +52,13 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
-    # 'rest_framework.authtoken', # remove later
-
-    #apps
     'authentication',
-    # 'input_data_management',
     'django_celery_beat',
 ]
-
+ 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-        'whitenoise.middleware.WhiteNoiseMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -66,6 +67,49 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+# ALLOWED_HOSTS = ['*']
+
+# CSRF_TRUSTED_ORIGINS = [
+#     "https://django-oauth-app.onrender.com",  # your actual Render domain
+# ]
+
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000",
+#     "http://3.131.31.72:30080"
+# ]
+
+# CORS_ALLOW_ALL_ORIGINS = True
+
+# # Application definition
+
+# INSTALLED_APPS = [
+#     'django.contrib.admin',
+#     'django.contrib.auth',
+#     'django.contrib.contenttypes',
+#     'django.contrib.sessions',
+#     'django.contrib.messages',
+#     'django.contrib.staticfiles',
+#     'rest_framework',
+#     'corsheaders',
+#     # 'rest_framework.authtoken', # remove later
+
+#     #apps
+#     'authentication',
+#     # 'input_data_management',
+#     'django_celery_beat',
+# ]
+
+# MIDDLEWARE = [
+#     'django.middleware.security.SecurityMiddleware',
+#         'whitenoise.middleware.WhiteNoiseMiddleware',
+#     'django.contrib.sessions.middleware.SessionMiddleware',
+#     'corsheaders.middleware.CorsMiddleware',
+#     'django.middleware.common.CommonMiddleware',
+#     'django.middleware.csrf.CsrfViewMiddleware',
+#     'django.contrib.auth.middleware.AuthenticationMiddleware',
+#     'django.contrib.messages.middleware.MessageMiddleware',
+#     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+# ]
 
 ROOT_URLCONF = 'omnibound_backend.urls'
 
