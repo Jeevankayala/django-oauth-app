@@ -24,63 +24,63 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-13-adsh5z!eip1!#$3yx09*kh!$cl*+6n-oa2!1!h4+9ipv^kc'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-ALLOWED_HOSTS = ['*']  # Consider ['localhost', 'django-oauth-app.onrender.com'] for production
+# # SECURITY WARNING: don't run with debug turned on in production!
+# DEBUG = True
+# ALLOWED_HOSTS = ['*']  # Consider ['localhost', 'django-oauth-app.onrender.com'] for production
 
-# CSRF settings
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "https://django-oauth-app.onrender.com",
-]
+# # CSRF settings
+# CSRF_TRUSTED_ORIGINS = [
+#     "http://localhost:3000",
+#     "https://django-oauth-app.onrender.com",
+# ]
 
-# CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-]
-CORS_ALLOW_ALL_ORIGINS = False
+# # CORS settings
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000",
+# ]
+# CORS_ALLOW_ALL_ORIGINS = False
 
-# Allow headers for CORS requests
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'authorization',  # Required for Clerk JWT
-    'content-type',
-    'origin',
-]
+# # Allow headers for CORS requests
+# CORS_ALLOW_HEADERS = [
+#     'accept',
+#     'authorization',  # Required for Clerk JWT
+#     'content-type',
+#     'origin',
+# ]
 
-# Allow methods for CORS requests
-CORS_ALLOW_METHODS = [
-    'GET',
-    'OPTIONS',
-]
+# # Allow methods for CORS requests
+# CORS_ALLOW_METHODS = [
+#     'GET',
+#     'OPTIONS',
+# ]
 
-# Not needed for JWT authentication
-# CORS_ALLOW_CREDENTIALS = True
+# # Not needed for JWT authentication
+# # CORS_ALLOW_CREDENTIALS = True
 
-INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework',
-    'corsheaders',
-    'authentication',
-    'django_celery_beat',
-]
+# INSTALLED_APPS = [
+#     'django.contrib.admin',
+#     'django.contrib.auth',
+#     'django.contrib.contenttypes',
+#     'django.contrib.sessions',
+#     'django.contrib.messages',
+#     'django.contrib.staticfiles',
+#     'rest_framework',
+#     'corsheaders',
+#     'authentication',
+#     'django_celery_beat',
+# ]
 
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
+# MIDDLEWARE = [
+#     'django.middleware.security.SecurityMiddleware',
+#     'whitenoise.middleware.WhiteNoiseMiddleware',
+#     'django.contrib.sessions.middleware.SessionMiddleware',
+#     'corsheaders.middleware.CorsMiddleware',
+#     'django.middleware.common.CommonMiddleware',
+#     'django.middleware.csrf.CsrfViewMiddleware',
+#     'django.contrib.auth.middleware.AuthenticationMiddleware',
+#     'django.contrib.messages.middleware.MessageMiddleware',
+#     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+# ]
 # ALLOWED_HOSTS = [
 #     'localhost',
 #     'django-oauth-app.onrender.com',
@@ -177,49 +177,49 @@ MIDDLEWARE = [
 #     'django.contrib.messages.middleware.MessageMiddleware',
 #     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 # ]
-# ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*']
 
-# CSRF_TRUSTED_ORIGINS = [
-#     "https://django-oauth-app.onrender.com",  # your actual Render domain
-# ]
+CSRF_TRUSTED_ORIGINS = [
+    "https://django-oauth-app.onrender.com",  # your actual Render domain
+]
 
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:3000",
-#     "http://3.131.31.72:30080"
-# ]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://3.131.31.72:30080"
+]
 
-# CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False  # Set to False for production
 
-# # Application definition
+# Application definition
 
-# INSTALLED_APPS = [
-#     'django.contrib.admin',
-#     'django.contrib.auth',
-#     'django.contrib.contenttypes',
-#     'django.contrib.sessions',
-#     'django.contrib.messages',
-#     'django.contrib.staticfiles',
-#     'rest_framework',
-#     'corsheaders',
-#     # 'rest_framework.authtoken', # remove later
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'rest_framework',
+    'corsheaders',
+    # 'rest_framework.authtoken', # remove later
 
-#     #apps
-#     'authentication',
-#     # 'input_data_management',
-#     'django_celery_beat',
-# ]
+    #apps
+    'authentication',
+    # 'input_data_management',
+    'django_celery_beat',
+]
 
-# MIDDLEWARE = [
-#     'django.middleware.security.SecurityMiddleware',
-#         'whitenoise.middleware.WhiteNoiseMiddleware',
-#     'django.contrib.sessions.middleware.SessionMiddleware',
-#     'corsheaders.middleware.CorsMiddleware',
-#     'django.middleware.common.CommonMiddleware',
-#     'django.middleware.csrf.CsrfViewMiddleware',
-#     'django.contrib.auth.middleware.AuthenticationMiddleware',
-#     'django.contrib.messages.middleware.MessageMiddleware',
-#     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-# ]
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+        'whitenoise.middleware.WhiteNoiseMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
 
 ROOT_URLCONF = 'omnibound_backend.urls'
 
@@ -355,7 +355,11 @@ LOGGING = {
 
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-
+SESSION_COOKIE_SECURE = True  # Required for HTTPS on Render
+SESSION_COOKIE_SAMESITE = 'None'  # Allow cross-origin session cookies
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_AGE = 1209600  # 2 weeks (adjust as needed)
+SESSION_COOKIE_DOMAIN = None  # Allow cookies for your Render domain
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
