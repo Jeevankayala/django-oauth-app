@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     path('clerk/webhook/', views.ClerkWebhookView.as_view(), name='clerk-webhook'),
     path('auth/google/', views.GoogleAuthView.as_view(), name='google-auth'),
+    path('auth/google/', views.google_auth_options, name='google-auth-options'),
     path('auth/google/callback/', views.GoogleCallbackView.as_view(), name='google-callback'),
     path('auth/google/delete/', views.GoogleDeleteView.as_view(), name='google-delete'),
     path('auth/zoom/', views.ZoomAuthView.as_view(), name='zoom-auth'),

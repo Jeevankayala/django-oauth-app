@@ -1,3 +1,4 @@
+from django.http import HttpResponseRedirect
 from django.shortcuts import redirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -121,9 +122,24 @@ class ClerkWebhookView(APIView):
             logger.error(f"Webhook processing error: {str(e)}")
             return Response({"error": f"Webhook processing failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
+@api_view(['OPTIONS'])
+@permission_classes([AllowAny])
+def google_auth_options(request):
+    response = Response(status=204)
+    response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+    response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    response['Access-Control-Allow-Headers'] = 'Authorization, Content-Type'
+    return response
+
+
 class GoogleAuthView(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request):
         try:
             try:
@@ -133,9 +149,9 @@ class GoogleAuthView(APIView):
                 if token_obj.refresh_token:
                     try:
                         oauth = refresh_oauth_token(
-                            token_obj, 
-                            GOOGLE_TOKEN_URL, 
-                            settings.GOOGLE_CLIENT_ID, 
+                            token_obj,
+                            GOOGLE_TOKEN_URL,
+                            settings.GOOGLE_CLIENT_ID,
                             settings.GOOGLE_CLIENT_SECRET
                         )
                         return Response({"message": "Token refreshed successfully"}, status=200)
@@ -143,7 +159,7 @@ class GoogleAuthView(APIView):
                         pass
             except GoogleToken.DoesNotExist:
                 pass
-                
+
             oauth = OAuth2Session(
                 settings.GOOGLE_CLIENT_ID,
                 redirect_uri=settings.GOOGLE_REDIRECT_URI,
@@ -156,11 +172,55 @@ class GoogleAuthView(APIView):
             )
             logger.info(f"Generated auth URL: {authorization_url}")
             request.session['oauth_state'] = state
-            request.session['oauth_user_id'] = request.user.clerk_id  # Use Clerk user ID
-            return redirect(authorization_url)
+            request.session['oauth_user_id'] = request.user.clerk_id
+            response = HttpResponseRedirect(authorization_url)
+            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            response['Access-Control-Allow-Headers'] = 'Authorization, Content-Type'
+            return response
         except Exception as e:
             logger.error(f"OAuth initiation failed: {str(e)}")
             return Response({'error': f'OAuth initiation failed: {str(e)}'}, status=500)
+# class GoogleAuthView(APIView):
+#     permission_classes = [IsAuthenticated]
+    
+#     def get(self, request):
+#         try:
+#             try:
+#                 token_obj = GoogleToken.objects.get(user=request.user)
+#                 if token_obj.expires_at > timezone.now():
+#                     return Response({"message": "Already authenticated with Google"}, status=200)
+#                 if token_obj.refresh_token:
+#                     try:
+#                         oauth = refresh_oauth_token(
+#                             token_obj, 
+#                             GOOGLE_TOKEN_URL, 
+#                             settings.GOOGLE_CLIENT_ID, 
+#                             settings.GOOGLE_CLIENT_SECRET
+#                         )
+#                         return Response({"message": "Token refreshed successfully"}, status=200)
+#                     except ValidationError:
+#                         pass
+#             except GoogleToken.DoesNotExist:
+#                 pass
+                
+#             oauth = OAuth2Session(
+#                 settings.GOOGLE_CLIENT_ID,
+#                 redirect_uri=settings.GOOGLE_REDIRECT_URI,
+#                 scope=GOOGLE_SCOPES
+#             )
+#             authorization_url, state = oauth.authorization_url(
+#                 GOOGLE_AUTH_URL,
+#                 access_type="offline",
+#                 prompt="consent"
+#             )
+#             logger.info(f"Generated auth URL: {authorization_url}")
+#             request.session['oauth_state'] = state
+#             request.session['oauth_user_id'] = request.user.clerk_id  # Use Clerk user ID
+#             return redirect(authorization_url)
+#         except Exception as e:
+#             logger.error(f"OAuth initiation failed: {str(e)}")
+#             return Response({'error': f'OAuth initiation failed: {str(e)}'}, status=500)
 
 class GoogleCallbackView(APIView):
     permission_classes = []
