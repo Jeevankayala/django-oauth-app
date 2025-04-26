@@ -153,7 +153,7 @@ class GoogleAuthView(APIView):
             oauth = OAuth2Session(
                 settings.GOOGLE_CLIENT_ID,
                 redirect_uri=settings.GOOGLE_REDIRECT_URI,
-                scope=settings.GOOGLE_SCOPES
+                scope=GOOGLE_SCOPES
             )
             authorization_url, state = oauth.authorization_url(
                 settings.GOOGLE_AUTH_URL,
