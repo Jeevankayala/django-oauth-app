@@ -181,12 +181,17 @@ ALLOWED_HOSTS = ['*']
 
 CSRF_TRUSTED_ORIGINS = [
     "https://django-oauth-app.onrender.com",  # your actual Render domain
+    "http://localhost:3000",
+    "http://3.131.31.72:30080",
 ]
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "http://3.131.31.72:30080"
+    "http://3.131.31.72:30080",
+    "https://django-oauth-app.onrender.com",  # Add backend domain for safety
 ]
+
+CORS_ALLOW_CREDENTIALS = True  # Allow cookies to be sent in cross-origin requests
 
 CORS_ALLOW_ALL_ORIGINS = False  # Set to False for production
 
@@ -383,6 +388,10 @@ SESSION_COOKIE_SAMESITE = 'None'  # Allow cross-origin session cookies
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_AGE = 1209600  # 2 weeks (adjust as needed)
 SESSION_COOKIE_DOMAIN = None  # Allow cookies for your Render domain
+SESSION_COOKIE_PATH = '/'  # Ensure cookie is available for all paths
+CSRF_COOKIE_SAMESITE = 'None'  # Align CSRF cookie with session cookie
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to access CSRF cookie if needed
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [

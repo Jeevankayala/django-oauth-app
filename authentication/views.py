@@ -3,7 +3,7 @@ from django.shortcuts import redirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from requests_oauthlib import OAuth2Session
+from requests_oauthlib import OAuth2Session, OAuth2Error
 from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth.models import User
@@ -123,18 +123,131 @@ class ClerkWebhookView(APIView):
             return Response({"error": f"Webhook processing failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
+class GoogleAuthView(APIView):
+    permission_classes = [IsAuthenticated]
 
-@api_view(['OPTIONS'])
-@permission_classes([AllowAny])
-def google_auth_options(request):
-    response = Response(status=204)
-    response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
-    response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-    response['Access-Control-Allow-Headers'] = 'Authorization, Content-Type'
-    return response
+    def get(self, request):
+        try:
+            # Check for existing token
+            try:
+                token_obj = GoogleToken.objects.get(user=request.user)
+                if token_obj.expires_at > timezone.now():
+                    logger.info(f"User {request.user.clerk_id} already authenticated with Google")
+                    return Response({"message": "Already authenticated with Google"}, status=200)
+                if token_obj.refresh_token:
+                    try:
+                        oauth = refresh_oauth_token(
+                            token_obj,
+                            settings.GOOGLE_TOKEN_URL,
+                            settings.GOOGLE_CLIENT_ID,
+                            settings.GOOGLE_CLIENT_SECRET
+                        )
+                        logger.info(f"Token refreshed for user {request.user.clerk_id}")
+                        return Response({"message": "Token refreshed successfully"}, status=200)
+                    except ValidationError as e:
+                        logger.warning(f"Token refresh failed for user {request.user.clerk_id}: {str(e)}")
+            except GoogleToken.DoesNotExist:
+                logger.info(f"No Google token found for user {request.user.clerk_id}")
+
+            # Initialize OAuth session
+            oauth = OAuth2Session(
+                settings.GOOGLE_CLIENT_ID,
+                redirect_uri=settings.GOOGLE_REDIRECT_URI,
+                scope=settings.GOOGLE_SCOPES
+            )
+            authorization_url, state = oauth.authorization_url(
+                settings.GOOGLE_AUTH_URL,
+                access_type="offline",
+                prompt="consent"
+            )
+
+            # Save session data
+            request.session['oauth_state'] = state
+            request.session['oauth_user_id'] = request.user.clerk_id
+            request.session.modified = True
+            request.session.save()
+
+            logger.info(f"Generated auth URL for user {request.user.clerk_id}: {authorization_url}")
+            logger.info(f"Session state: {state}, user_id: {request.user.clerk_id}, session_key: {request.session.session_key}")
+
+            # Return the authorization URL for the frontend to redirect
+            return Response({"authorization_url": authorization_url}, status=200)
+
+        except Exception as e:
+            logger.error(f"OAuth initiation failed for user {request.user.clerk_id}: {str(e)}", exc_info=True)
+            return Response({'error': f'OAuth initiation failed: {str(e)}'}, status=500)
+
+class GoogleCallbackView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        try:
+            logger.info(f"Callback received with query params: {request.GET}")
+            logger.info(f"Session data: {request.session.items()}")
+            logger.info(f"Session ID: {request.session.session_key}")
+            logger.info(f"Cookies received: {request.COOKIES}")
+
+            if 'code' not in request.GET:
+                logger.warning("No authorization code provided in callback")
+                return Response({'error': 'No authorization code provided'}, status=400)
+
+            stored_state = request.session.get('oauth_state')
+            user_id = request.session.get('oauth_user_id')
+            received_state = request.GET.get('state')
+
+            if not stored_state or not user_id:
+                logger.warning(f"Missing session data - state: {stored_state}, user_id: {user_id}")
+                return Response({'error': 'Session expired or invalid. Please try again.'}, status=400)
+
+            if stored_state != received_state:
+                logger.warning(f"State mismatch - stored: {stored_state}, received: {received_state}")
+                return Response({'error': 'State mismatch. Possible CSRF attack.'}, status=400)
+
+            try:
+                user = CustomUser.objects.get(clerk_id=user_id)
+            except CustomUser.DoesNotExist:
+                logger.error(f"User with clerk_id {user_id} not found")
+                return Response({'error': 'User not found'}, status=404)
+
+            oauth = OAuth2Session(
+                settings.GOOGLE_CLIENT_ID,
+                redirect_uri=settings.GOOGLE_REDIRECT_URI,
+                state=stored_state
+            )
+            try:
+                token = oauth.fetch_token(
+                    settings.GOOGLE_TOKEN_URL,
+                    code=request.GET.get('code'),
+                    client_secret=settings.GOOGLE_CLIENT_SECRET
+                )
+            except OAuth2Error as e:
+                logger.error(f"Token exchange failed: {str(e)}")
+                return Response({'error': f'Token exchange failed: {str(e)}'}, status=400)
+
+            expires_at = timezone.now() + timezone.timedelta(seconds=token['expires_in'])
+            google_token, created = GoogleToken.objects.update_or_create(
+                user=user,
+                defaults={
+                    'access_token': token['access_token'],
+                    'refresh_token': token.get('refresh_token', ''),
+                    'expires_at': expires_at
+                }
+            )
+
+            # Clean up session
+            if 'oauth_state' in request.session:
+                del request.session['oauth_state']
+            if 'oauth_user_id' in request.session:
+                del request.session['oauth_user_id']
+            request.session.modified = True
+            request.session.save()
+
+            logger.info(f"Google integration successful for user {user.clerk_id}")
+            return Response({"message": "Google integration successful"}, status=200)
+
+        except Exception as e:
+            logger.error(f"OAuth callback error: {str(e)}", exc_info=True)
+            return Response({'error': f'OAuth callback error: {str(e)}'}, status=500)
 
 
 # class GoogleAuthView(APIView):
@@ -182,120 +295,120 @@ def google_auth_options(request):
 #             logger.error(f"OAuth initiation failed: {str(e)}")
 #             return Response({'error': f'OAuth initiation failed: {str(e)}'}, status=500)
 
-class GoogleAuthView(APIView):
-    permission_classes = [IsAuthenticated]
+# class GoogleAuthView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        try:
-            try:
-                token_obj = GoogleToken.objects.get(user=request.user)
-                if token_obj.expires_at > timezone.now():
-                    return Response({"message": "Already authenticated with Google"}, status=200)
-                if token_obj.refresh_token:
-                    try:
-                        oauth = refresh_oauth_token(
-                            token_obj,
-                            GOOGLE_TOKEN_URL,
-                            settings.GOOGLE_CLIENT_ID,
-                            settings.GOOGLE_CLIENT_SECRET
-                        )
-                        return Response({"message": "Token refreshed successfully"}, status=200)
-                    except ValidationError:
-                        pass
-            except GoogleToken.DoesNotExist:
-                pass
+#     def get(self, request):
+#         try:
+#             try:
+#                 token_obj = GoogleToken.objects.get(user=request.user)
+#                 if token_obj.expires_at > timezone.now():
+#                     return Response({"message": "Already authenticated with Google"}, status=200)
+#                 if token_obj.refresh_token:
+#                     try:
+#                         oauth = refresh_oauth_token(
+#                             token_obj,
+#                             GOOGLE_TOKEN_URL,
+#                             settings.GOOGLE_CLIENT_ID,
+#                             settings.GOOGLE_CLIENT_SECRET
+#                         )
+#                         return Response({"message": "Token refreshed successfully"}, status=200)
+#                     except ValidationError:
+#                         pass
+#             except GoogleToken.DoesNotExist:
+#                 pass
 
-            oauth = OAuth2Session(
-                settings.GOOGLE_CLIENT_ID,
-                redirect_uri=settings.GOOGLE_REDIRECT_URI,
-                scope=GOOGLE_SCOPES
-            )
-            authorization_url, state = oauth.authorization_url(
-                GOOGLE_AUTH_URL,
-                access_type="offline",
-                prompt="consent"
-            )
-            logger.warning(f"Generated auth URL: {authorization_url}")  # Use warning for Render visibility
-            logger.warning(f"Setting session state: {state}")
-            logger.warning(f"Setting session user_id: {request.user.clerk_id}")
-            request.session['oauth_state'] = state
-            request.session['oauth_user_id'] = request.user.clerk_id
-            request.session.modified = True
-            request.session.save()
-            logger.warning(f"Session saved: {request.session.session_key}")
-            return Response({"authorization_url": authorization_url}, status=200)
-        except Exception as e:
-            logger.error(f"OAuth initiation failed: {str(e)}")
-            return Response({'error': f'OAuth initiation failed: {str(e)}'}, status=500)
+#             oauth = OAuth2Session(
+#                 settings.GOOGLE_CLIENT_ID,
+#                 redirect_uri=settings.GOOGLE_REDIRECT_URI,
+#                 scope=GOOGLE_SCOPES
+#             )
+#             authorization_url, state = oauth.authorization_url(
+#                 GOOGLE_AUTH_URL,
+#                 access_type="offline",
+#                 prompt="consent"
+#             )
+#             logger.warning(f"Generated auth URL: {authorization_url}")  # Use warning for Render visibility
+#             logger.warning(f"Setting session state: {state}")
+#             logger.warning(f"Setting session user_id: {request.user.clerk_id}")
+#             request.session['oauth_state'] = state
+#             request.session['oauth_user_id'] = request.user.clerk_id
+#             request.session.modified = True
+#             request.session.save()
+#             logger.warning(f"Session saved: {request.session.session_key}")
+#             return Response({"authorization_url": authorization_url}, status=200)
+#         except Exception as e:
+#             logger.error(f"OAuth initiation failed: {str(e)}")
+#             return Response({'error': f'OAuth initiation failed: {str(e)}'}, status=500)
         
-class GoogleCallbackView(APIView):
-    permission_classes = []
+# class GoogleCallbackView(APIView):
+#     permission_classes = []
 
-    def get(self, request):
-        try:
-            logger.warning(f"Session data: {request.session.items()}")
-            logger.warning(f"Session ID: {request.session.session_key}")
-            logger.warning(f"Cookies received: {request.COOKIES}")
-            logger.warning(f"Callback query params: {request.GET}")
+#     def get(self, request):
+#         try:
+#             logger.warning(f"Session data: {request.session.items()}")
+#             logger.warning(f"Session ID: {request.session.session_key}")
+#             logger.warning(f"Cookies received: {request.COOKIES}")
+#             logger.warning(f"Callback query params: {request.GET}")
 
-            if 'code' not in request.GET:
-                logger.warning("No authorization code provided in callback")
-                return Response({'error': 'No authorization code provided'}, status=400)
+#             if 'code' not in request.GET:
+#                 logger.warning("No authorization code provided in callback")
+#                 return Response({'error': 'No authorization code provided'}, status=400)
 
-            stored_state = request.session.get('oauth_state')
-            user_id = request.session.get('oauth_user_id')
-            received_state = request.GET.get('state')
+#             stored_state = request.session.get('oauth_state')
+#             user_id = request.session.get('oauth_user_id')
+#             received_state = request.GET.get('state')
 
-            if not stored_state or not user_id:
-                logger.warning(f"Missing state ({stored_state}) or user_id ({user_id}) in session")
-                return Response({'error': 'Session expired or invalid. Please try again.'}, status=400)
+#             if not stored_state or not user_id:
+#                 logger.warning(f"Missing state ({stored_state}) or user_id ({user_id}) in session")
+#                 return Response({'error': 'Session expired or invalid. Please try again.'}, status=400)
 
-            if stored_state != received_state:
-                logger.warning(f"State mismatch: stored={stored_state}, received={received_state}")
-                return Response({'error': 'State mismatch. Possible CSRF attack.'}, status=400)
+#             if stored_state != received_state:
+#                 logger.warning(f"State mismatch: stored={stored_state}, received={received_state}")
+#                 return Response({'error': 'State mismatch. Possible CSRF attack.'}, status=400)
 
-            try:
-                user = CustomUser.objects.get(clerk_id=user_id)
-            except CustomUser.DoesNotExist:
-                logger.error(f"User with clerk_id {user_id} not found")
-                return Response({'error': 'User not found'}, status=404)
+#             try:
+#                 user = CustomUser.objects.get(clerk_id=user_id)
+#             except CustomUser.DoesNotExist:
+#                 logger.error(f"User with clerk_id {user_id} not found")
+#                 return Response({'error': 'User not found'}, status=404)
 
-            oauth = OAuth2Session(
-                settings.GOOGLE_CLIENT_ID,
-                redirect_uri=settings.GOOGLE_REDIRECT_URI,
-                state=stored_state
-            )
-            try:
-                token = oauth.fetch_token(
-                    GOOGLE_TOKEN_URL,
-                    code=request.GET.get('code'),
-                    client_secret=settings.GOOGLE_CLIENT_SECRET
-                )
-            except Exception as e:
-                logger.error(f"Token exchange failed: {str(e)}")
-                return Response({'error': f'Token exchange failed: {str(e)}'}, status=400)
+#             oauth = OAuth2Session(
+#                 settings.GOOGLE_CLIENT_ID,
+#                 redirect_uri=settings.GOOGLE_REDIRECT_URI,
+#                 state=stored_state
+#             )
+#             try:
+#                 token = oauth.fetch_token(
+#                     GOOGLE_TOKEN_URL,
+#                     code=request.GET.get('code'),
+#                     client_secret=settings.GOOGLE_CLIENT_SECRET
+#                 )
+#             except Exception as e:
+#                 logger.error(f"Token exchange failed: {str(e)}")
+#                 return Response({'error': f'Token exchange failed: {str(e)}'}, status=400)
 
-            expires_at = timezone.now() + timezone.timedelta(seconds=token['expires_in'])
-            google_token, created = GoogleToken.objects.update_or_create(
-                user=user,
-                defaults={
-                    'access_token': token['access_token'],
-                    'refresh_token': token.get('refresh_token', ''),
-                    'expires_at': expires_at
-                }
-            )
+#             expires_at = timezone.now() + timezone.timedelta(seconds=token['expires_in'])
+#             google_token, created = GoogleToken.objects.update_or_create(
+#                 user=user,
+#                 defaults={
+#                     'access_token': token['access_token'],
+#                     'refresh_token': token.get('refresh_token', ''),
+#                     'expires_at': expires_at
+#                 }
+#             )
 
-            if 'oauth_state' in request.session:
-                del request.session['oauth_state']
-            if 'oauth_user_id' in request.session:
-                del request.session['oauth_user_id']
+#             if 'oauth_state' in request.session:
+#                 del request.session['oauth_state']
+#             if 'oauth_user_id' in request.session:
+#                 del request.session['oauth_user_id']
 
-            logger.warning("Google integration successful")
-            return Response({"message": "Google integration successful"}, status=200)
+#             logger.warning("Google integration successful")
+#             return Response({"message": "Google integration successful"}, status=200)
 
-        except Exception as e:
-            logger.error(f"OAuth callback error: {str(e)}")
-            return Response({'error': f'OAuth callback error: {str(e)}'}, status=500)
+#         except Exception as e:
+#             logger.error(f"OAuth callback error: {str(e)}")
+#             return Response({'error': f'OAuth callback error: {str(e)}'}, status=500)
 # class GoogleAuthView(APIView):
 #     permission_classes = [IsAuthenticated]
     
@@ -342,73 +455,73 @@ class GoogleCallbackView(APIView):
 #             return Response({'error': f'OAuth initiation failed: {str(e)}'}, status=500)
 
 
-class GoogleCallbackView(APIView):
-    permission_classes = []
+# class GoogleCallbackView(APIView):
+#     permission_classes = []
 
-    def get(self, request):
-        try:
-            logger.info(f"Session data: {request.session.items()}")
-            logger.info(f"Session ID: {request.session.session_key}")
-            logger.info(f"Cookies received: {request.COOKIES}")
+#     def get(self, request):
+#         try:
+#             logger.info(f"Session data: {request.session.items()}")
+#             logger.info(f"Session ID: {request.session.session_key}")
+#             logger.info(f"Cookies received: {request.COOKIES}")
 
-            if 'code' not in request.GET:
-                logger.warning("No authorization code provided in callback")
-                return Response({'error': 'No authorization code provided'}, status=400)
+#             if 'code' not in request.GET:
+#                 logger.warning("No authorization code provided in callback")
+#                 return Response({'error': 'No authorization code provided'}, status=400)
 
-            stored_state = request.session.get('oauth_state')
-            user_id = request.session.get('oauth_user_id')
-            received_state = request.GET.get('state')
+#             stored_state = request.session.get('oauth_state')
+#             user_id = request.session.get('oauth_user_id')
+#             received_state = request.GET.get('state')
 
-            if not stored_state or not user_id:
-                logger.warning(f"Missing state ({stored_state}) or user_id ({user_id}) in session")
-                return Response({'error': 'Session expired or invalid. Please try again.'}, status=400)
+#             if not stored_state or not user_id:
+#                 logger.warning(f"Missing state ({stored_state}) or user_id ({user_id}) in session")
+#                 return Response({'error': 'Session expired or invalid. Please try again.'}, status=400)
 
-            if stored_state != received_state:
-                logger.warning(f"State mismatch: stored={stored_state}, received={received_state}")
-                return Response({'error': 'State mismatch. Possible CSRF attack.'}, status=400)
+#             if stored_state != received_state:
+#                 logger.warning(f"State mismatch: stored={stored_state}, received={received_state}")
+#                 return Response({'error': 'State mismatch. Possible CSRF attack.'}, status=400)
 
-            try:
-                user = CustomUser.objects.get(clerk_id=user_id)
-            except CustomUser.DoesNotExist:
-                logger.error(f"User with clerk_id {user_id} not found")
-                return Response({'error': 'User not found'}, status=404)
+#             try:
+#                 user = CustomUser.objects.get(clerk_id=user_id)
+#             except CustomUser.DoesNotExist:
+#                 logger.error(f"User with clerk_id {user_id} not found")
+#                 return Response({'error': 'User not found'}, status=404)
 
-            oauth = OAuth2Session(
-                settings.GOOGLE_CLIENT_ID,
-                redirect_uri=settings.GOOGLE_REDIRECT_URI,
-                state=stored_state
-            )
-            try:
-                token = oauth.fetch_token(
-                    GOOGLE_TOKEN_URL,
-                    code=request.GET.get('code'),
-                    client_secret=settings.GOOGLE_CLIENT_SECRET
-                )
-            except Exception as e:
-                logger.error(f"Token exchange failed: {str(e)}")
-                return Response({'error': f'Token exchange failed: {str(e)}'}, status=400)
+#             oauth = OAuth2Session(
+#                 settings.GOOGLE_CLIENT_ID,
+#                 redirect_uri=settings.GOOGLE_REDIRECT_URI,
+#                 state=stored_state
+#             )
+#             try:
+#                 token = oauth.fetch_token(
+#                     GOOGLE_TOKEN_URL,
+#                     code=request.GET.get('code'),
+#                     client_secret=settings.GOOGLE_CLIENT_SECRET
+#                 )
+#             except Exception as e:
+#                 logger.error(f"Token exchange failed: {str(e)}")
+#                 return Response({'error': f'Token exchange failed: {str(e)}'}, status=400)
 
-            expires_at = timezone.now() + timezone.timedelta(seconds=token['expires_in'])
-            google_token, created = GoogleToken.objects.update_or_create(
-                user=user,
-                defaults={
-                    'access_token': token['access_token'],
-                    'refresh_token': token.get('refresh_token', ''),
-                    'expires_at': expires_at
-                }
-            )
+#             expires_at = timezone.now() + timezone.timedelta(seconds=token['expires_in'])
+#             google_token, created = GoogleToken.objects.update_or_create(
+#                 user=user,
+#                 defaults={
+#                     'access_token': token['access_token'],
+#                     'refresh_token': token.get('refresh_token', ''),
+#                     'expires_at': expires_at
+#                 }
+#             )
 
-            if 'oauth_state' in request.session:
-                del request.session['oauth_state']
-            if 'oauth_user_id' in request.session:
-                del request.session['oauth_user_id']
+#             if 'oauth_state' in request.session:
+#                 del request.session['oauth_state']
+#             if 'oauth_user_id' in request.session:
+#                 del request.session['oauth_user_id']
 
-            logger.info("Google integration successful")
-            return Response({"message": "Google integration successful"}, status=200)
+#             logger.info("Google integration successful")
+#             return Response({"message": "Google integration successful"}, status=200)
 
-        except Exception as e:
-            logger.error(f"OAuth callback error: {str(e)}")
-            return Response({'error': f'OAuth callback error: {str(e)}'}, status=500)
+#         except Exception as e:
+#             logger.error(f"OAuth callback error: {str(e)}")
+#             return Response({'error': f'OAuth callback error: {str(e)}'}, status=500)
 # class GoogleCallbackView(APIView):
 #     permission_classes = []
     
