@@ -138,7 +138,7 @@ class GoogleAuthView(APIView):
                     try:
                         oauth = refresh_oauth_token(
                             token_obj,
-                            settings.GOOGLE_TOKEN_URL,
+                            GOOGLE_TOKEN_URL,
                             settings.GOOGLE_CLIENT_ID,
                             settings.GOOGLE_CLIENT_SECRET
                         )
@@ -156,7 +156,7 @@ class GoogleAuthView(APIView):
                 scope=GOOGLE_SCOPES
             )
             authorization_url, state = oauth.authorization_url(
-                settings.GOOGLE_AUTH_URL,
+                GOOGLE_AUTH_URL,
                 access_type="offline",
                 prompt="consent"
             )
@@ -216,7 +216,7 @@ class GoogleCallbackView(APIView):
             )
             try:
                 token = oauth.fetch_token(
-                    settings.GOOGLE_TOKEN_URL,
+                    GOOGLE_TOKEN_URL,
                     code=request.GET.get('code'),
                     client_secret=settings.GOOGLE_CLIENT_SECRET
                 )
