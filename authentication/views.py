@@ -3,7 +3,7 @@ from django.shortcuts import redirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from requests_oauthlib import OAuth2Session, OAuth2Error
+from requests_oauthlib import OAuth2Session
 from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth.models import User
@@ -220,7 +220,7 @@ class GoogleCallbackView(APIView):
                     code=request.GET.get('code'),
                     client_secret=settings.GOOGLE_CLIENT_SECRET
                 )
-            except OAuth2Error as e:
+            except Exception as e:
                 logger.error(f"Token exchange failed: {str(e)}")
                 return Response({'error': f'Token exchange failed: {str(e)}'}, status=400)
 
